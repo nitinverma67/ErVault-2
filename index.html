@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ErVault</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4f46e5',
+                        secondary: '#0ea5e9',
+                        dark: '#0f172a',
+                        light: '#f8fafc'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-blob {
+            position: absolute;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .view-section.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <nav class="fixed w-full z-50 glass-nav transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex-shrink-0 flex items-center cursor-pointer" onclick="router.navigate('home')">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-lg shadow-lg mr-2">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-slate-900">Er<span class="text-primary">vault</span></span>
+                </div>
+
+                <div class="hidden md:flex space-x-8 items-center">
+                    <a href="#" onclick="router.navigate('home')" class="text-slate-600 hover:text-primary font-medium transition">Home</a>
+                    <a href="#" onclick="router.navigate('notes')" class="text-slate-600 hover:text-primary font-medium transition">Browse Notes</a>
+                    <a href="#" onclick="router.navigate('upload')" class="text-slate-600 hover:text-primary font-medium transition">Upload</a>
+                    
+                    <a href="#" id="nav-admin-link" onclick="router.navigate('admin')" class="hidden text-red-500 hover:text-red-700 font-bold transition">
+                        <i class="fa-solid fa-shield-halved mr-1"></i> Admin
+                    </a>
+                    
+                    <div id="nav-auth-container" class="flex items-center space-x-4 ml-4">
+                        </div>
+                </div>
+
+                <div class="md:hidden flex items-center">
+                    <button onclick="toggleMobileMenu()" class="text-slate-600 hover:text-primary p-2">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-slate-100 absolute w-full shadow-lg">
+            <div class="px-4 pt-2 pb-4 space-y-1">
+                <a href="#" onclick="router.navigate('home'); toggleMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-primary">Home</a>
+                <a href="#" onclick="router.navigate('notes'); toggleMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-primary">Browse Notes</a>
+                <a href="#" onclick="router.navigate('upload'); toggleMobileMenu()" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-slate-50 hover:text-primary">Upload</a>
+                <a href="#" id="mobile-admin-link" onclick="router.navigate('admin'); toggleMobileMenu()" class="hidden block px-3 py-2 text-red-600 font-bold">Admin Dashboard</a>
+                <div id="mobile-auth-container" class="pt-2 border-t mt-2"></div>
+            </div>
+        </div>
+    </nav>
+
+    <main id="app" class="flex-grow pt-16">
+        
+        <section id="view-home" class="view-section active">
+            <div class="relative overflow-hidden pt-20 pb-24">
+                <div class="hero-blob bg-purple-300 w-96 h-96 rounded-full top-0 left-0 mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+                <div class="hero-blob bg-blue-300 w-96 h-96 rounded-full bottom-0 right-0 mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+                    <span class="inline-block py-1 px-3 rounded-full bg-indigo-50 text-primary text-xs font-semibold tracking-wide uppercase mb-4 border border-indigo-100">Our Mission: Democratizing Education</span>
+                    <h1 class="text-5xl md:text-7xl font-bold tracking-tight text-slate-900 mb-6">
+                        Share Knowledge.<br>
+                        <span class="gradient-text">Ignite Success.</span>
+                    </h1>
+                    <p class="mt-4 max-w-2xl mx-auto text-xl text-slate-500 mb-10">
+                        We believe every engineering student deserves access to the best resources. Our goal is to eliminate barriers to learning by building a collaborative ecosystem where knowledge flows freely.
+                    </p>
+                    <div class="flex justify-center gap-4">
+                        <button onclick="router.navigate('notes')" class="px-8 py-4 bg-primary hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-1">
+                            Start Exploring
+                        </button>
+                        <button onclick="router.navigate('upload')" class="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-xl border border-slate-200 shadow-sm transition">
+                            Upload Notes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white py-20">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="p-8 rounded-2xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 hover:shadow-xl transition duration-300 group">
+                            <div class="w-14 h-14 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition">
+                                <i class="fa-solid fa-layer-group"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-3">Organized Content</h3>
+                            <p class="text-slate-500">Find exactly what you need with filters for branches (CSE, ECE, ME) and semesters.</p>
+                        </div>
+                        <div class="p-8 rounded-2xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 hover:shadow-xl transition duration-300 group">
+                            <div class="w-14 h-14 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition">
+                                <i class="fa-solid fa-star"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-3">Community Rated</h3>
+                            <p class="text-slate-500">Don't waste time on bad notes. Our rating system ensures you get the best material.</p>
+                        </div>
+                        <div class="p-8 rounded-2xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 hover:shadow-xl transition duration-300 group">
+                            <div class="w-14 h-14 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center text-2xl mb-6 group-hover:scale-110 transition">
+                                <i class="fa-solid fa-id-card"></i>
+                            </div>
+                            <h3 class="text-xl font-bold mb-3">Student Profiles</h3>
+                            <p class="text-slate-500">Build your reputation. Track your uploads and see how many students you've helped.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-notes" class="view-section py-10 px-4 max-w-7xl mx-auto w-full">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900">Available Notes</h2>
+                    <p class="text-slate-500 mt-1">Browse, preview, and download resources.</p>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                    <div class="relative flex-grow md:flex-grow-0">
+                        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchInput" placeholder="Search topics..." 
+                            class="pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none w-full md:w-48">
+                    </div>
+                    
+                    <select id="filterDegree" class="px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-primary outline-none cursor-pointer text-sm">
+                        <option value="">All Degrees</option>
+                        </select>
+                    
+                    <select id="filterBranch" class="px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-primary outline-none cursor-pointer text-sm max-w-[150px]">
+                        <option value="">All Branches</option>
+                        </select>
+
+                    <select id="filterSem" class="px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-primary outline-none cursor-pointer text-sm">
+                        <option value="">Sem</option>
+                         </select>
+                    
+                    <select id="unitFilter" class="px-3 py-2 rounded-lg border border-slate-200 bg-white focus:border-primary outline-none cursor-pointer text-sm">
+                        <option value="">Type</option>
+                        <option value="Full Syllabus">Full Syllabus</option>
+                        <option value="Unit 1">Unit 1</option>
+                        <option value="Unit 2">Unit 2</option>
+                        <option value="Unit 3">Unit 3</option>
+                        <option value="Unit 4">Unit 4</option>
+                        <option value="Unit 5">Unit 5</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="notes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            
+            <div id="notes-empty" class="hidden text-center py-20">
+                <div class="text-6xl mb-4">📂</div>
+                <h3 class="text-xl font-bold text-slate-700">No notes found</h3>
+                <p class="text-slate-500">Try adjusting your filters or be the first to upload!</p>
+            </div>
+        </section>
+
+        <section id="view-admin" class="view-section py-10 px-4 max-w-7xl mx-auto w-full">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-900"><i class="fa-solid fa-user-shield text-primary mr-2"></i>Admin Dashboard</h2>
+                    <p class="text-slate-500 mt-1">Manage uploads, users, and reports.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+                    <div class="flex space-x-2 bg-white p-1 rounded-lg border overflow-x-auto">
+                        <button onclick="Admin.switchTab('pending')" id="admin-tab-pending" class="px-4 py-2 rounded-md font-medium text-sm bg-primary text-white shadow-sm whitespace-nowrap">Pending</button>
+                        <button onclick="Admin.switchTab('reported')" id="admin-tab-reported" class="px-4 py-2 rounded-md font-medium text-sm text-slate-600 hover:bg-slate-50 whitespace-nowrap">Reported</button>
+                        <button onclick="Admin.switchTab('all')" id="admin-tab-all" class="px-4 py-2 rounded-md font-medium text-sm text-slate-600 hover:bg-slate-50 whitespace-nowrap">All Files</button>
+                        <button onclick="Admin.switchTab('users')" id="admin-tab-users" class="px-4 py-2 rounded-md font-medium text-sm text-slate-600 hover:bg-slate-50 whitespace-nowrap">Users</button>
+                    </div>
+                </div>
+            </div>
+            <div id="admin-content-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            <div id="admin-empty" class="hidden text-center py-20"><div class="text-6xl mb-4 text-slate-200">✓</div><h3 class="text-xl font-bold text-slate-400">All caught up! No items here.</h3></div>
+        </section>
+
+        <section id="view-upload" class="view-section py-10 px-4 max-w-3xl mx-auto w-full">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl font-bold text-slate-900">Upload Resources</h2>
+                <p class="text-slate-500 mt-2">Share your knowledge. Uploads require admin approval.</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+                <div class="p-1 bg-gradient-to-r from-primary to-secondary"></div>
+                <form id="uploadForm" class="p-8 space-y-6">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Resource Title</label>
+                        <input type="text" id="upTitle" required pattern="[A-Za-z][A-Za-z0-9\s]*" title="Title must start with a letter and contain only letters, numbers, and spaces." class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition" placeholder="e.g. Data Structures Unit 1">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                         <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Degree</label>
+                            <select id="upDegree" required class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white">
+                                <option value="">Select Degree</option>
+                                </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Branch</label>
+                            <select id="upBranch" required class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white">
+                                <option value="">Select Branch</option>
+                                </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Semester</label>
+                            <select id="upSem" required class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white">
+                                <option value="">Select Semester</option>
+                                </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Content Coverage</label>
+                            <select id="upUnit" required class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white">
+                                <option value="">Select Coverage</option>
+                                <option value="Full Syllabus">Full Syllabus / All Units</option>
+                                <option value="Unit 1">Unit 1</option>
+                                <option value="Unit 2">Unit 2</option>
+                                <option value="Unit 3">Unit 3</option>
+                                <option value="Unit 4">Unit 4</option>
+                                <option value="Unit 5">Unit 5</option>
+                                <option value="Other">Other / Lab Manual</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Visibility</label>
+                            <select id="upVisibility" required class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-primary outline-none bg-white">
+                                <option value="public">Public (Everyone can see)</option>
+                                <option value="private">Private (Only you)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="relative border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition cursor-pointer group" onclick="document.getElementById('upFile').click()">
+                        <input type="file" id="upFile" accept="application/pdf" class="hidden" onchange="handleFileSelect(this)">
+                        <div class="space-y-2">
+                            <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto group-hover:scale-110 transition">
+                                <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                            </div>
+                            <h4 class="text-base font-semibold text-slate-700">Click to upload PDF</h4>
+                            <p class="text-xs text-slate-500">Max file size: 15MB</p>
+                            <p id="fileNameDisplay" class="text-sm font-medium text-primary mt-2 hidden"></p>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-4 bg-primary hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/30 transition transform hover:-translate-y-0.5">
+                        Submit for Review
+                    </button>
+                    <p class="text-xs text-center text-slate-400">All uploads require admin approval before appearing publicly.</p>
+                </form>
+            </div>
+        </section>
+
+        <section id="view-profile" class="view-section w-full">
+            <div class="relative bg-slate-900 h-60">
+                <div class="absolute inset-0 bg-gradient-to-r from-slate-900 to-indigo-900 opacity-90"></div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative z-10">
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 md:p-8">
+                    <div class="flex flex-col md:flex-row items-start md:items-end gap-6">
+                        <div class="relative">
+                            <img id="p-avatar" src="" class="w-32 h-32 rounded-2xl border-4 border-white shadow-md bg-white object-cover">
+                            <button id="p-edit-avatar-btn" onclick="profileSwitchTab('settings')" class="absolute bottom-2 right-2 w-8 h-8 bg-slate-800 text-white rounded-full flex items-center justify-center hover:bg-primary transition shadow-sm" title="Change Avatar">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                        </div>
+
+                        <div class="flex-grow">
+                            <div class="flex flex-col">
+                                <div class="flex items-baseline gap-2">
+                                    <h1 id="p-name" class="text-3xl font-bold text-slate-900">Student Name</h1>
+                                    <span id="p-username" class="text-slate-400 font-medium">@username</span>
+                                </div>
+                                <div id="p-details" class="flex flex-wrap gap-2 text-sm text-slate-500 mt-1 mb-2 items-center">
+                                    <span id="p-college"><i class="fa-solid fa-building-columns mr-1"></i> College Name</span>
+                                    <span class="text-slate-300">•</span>
+                                    <span id="p-location"><i class="fa-solid fa-location-dot mr-1"></i> Location</span>
+                                    <span class="text-slate-300">•</span>
+                                    <span id="p-year">Year ?</span>
+                                </div>
+                                <p id="p-bio" class="text-slate-600 max-w-2xl italic">"Bio goes here..."</p>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-2 mt-4 items-center">
+                                <span id="p-badge-edu" class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-semibold uppercase tracking-wide">Course</span>
+                                <a id="p-social" href="#" target="_blank" class="hidden px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-semibold hover:bg-blue-100 transition">
+                                    <i class="fa-brands fa-linkedin mr-1"></i> Social
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-6 mt-6 md:mt-0 w-full md:w-auto border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-6 justify-around md:justify-start">
+                            <div class="text-center">
+                                <div id="stat-uploads" class="text-2xl font-bold text-slate-900">0</div>
+                                <div class="text-xs text-slate-400 uppercase tracking-wide">Uploads</div>
+                            </div>
+                            <div class="text-center">
+                                <div id="stat-downloads" class="text-2xl font-bold text-slate-900">0</div>
+                                <div class="text-xs text-slate-400 uppercase tracking-wide">Downloads</div>
+                            </div>
+                            <div class="text-center">
+                                <div id="stat-rating" class="text-2xl font-bold text-yellow-500">0.0</div>
+                                <div class="text-xs text-slate-400 uppercase tracking-wide">Avg Rating</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-10 border-b border-slate-200">
+                        <div class="flex space-x-8 overflow-x-auto no-scrollbar">
+                            <button onclick="profileSwitchTab('uploads')" id="tab-uploads" class="pb-4 px-2 border-b-2 border-primary text-primary font-medium whitespace-nowrap transition">Uploads</button>
+                            <button onclick="profileSwitchTab('wishlist')" id="tab-wishlist" class="pb-4 px-2 border-b-2 border-transparent hover:border-slate-300 text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap transition">Saved Notes</button>
+                            <button onclick="profileSwitchTab('downloads')" id="tab-downloads" class="pb-4 px-2 border-b-2 border-transparent hover:border-slate-300 text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap transition">History</button>
+                            <button onclick="profileSwitchTab('leaderboard')" id="tab-leaderboard" class="pb-4 px-2 border-b-2 border-transparent hover:border-slate-300 text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap transition"><i class="fa-solid fa-trophy mr-1 text-yellow-500"></i>Leaderboard</button>
+                            <button onclick="profileSwitchTab('settings')" id="tab-settings" class="pb-4 px-2 border-b-2 border-transparent hover:border-slate-300 text-slate-500 hover:text-slate-700 font-medium whitespace-nowrap transition">Edit Profile</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 min-h-[300px]">
+                        <div id="content-uploads" class="block">
+                            <div id="profile-notes-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                        </div>
+                        <div id="content-wishlist" class="hidden">
+                             <div id="profile-wishlist-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                        </div>
+                        <div id="content-downloads" class="hidden">
+                             <div id="profile-downloads-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                        </div>
+                        
+                        <div id="content-leaderboard" class="hidden">
+                            <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 max-w-2xl mx-auto">
+                                <h3 class="text-xl font-bold text-center mb-4 text-indigo-900">Top Contributors</h3>
+                                <div id="leaderboard-list" class="space-y-3"></div>
+                            </div>
+                        </div>
+
+                        <div id="content-settings" class="hidden max-w-2xl">
+                            <form id="profileEditForm" class="space-y-6">
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Choose Avatar</label>
+                                    <div class="flex gap-3 flex-wrap mb-2" id="avatar-presets">
+                                        </div>
+                                    <div class="text-xs text-slate-500 mb-2">Or upload custom:</div>
+                                    <input type="file" id="editAvatarInput" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" accept="image/*">
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Display Name</label><input id="editName" type="text" class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary"></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Course / Branch</label><input id="editEdu" type="text" class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary" placeholder="e.g. B.Tech CSE"></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">College Name</label><input id="editCollege" type="text" class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary"></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Location</label><input id="editLocation" type="text" class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary" placeholder="City, State"></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Study Year</label><select id="editYear" class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary bg-white"><option value="">Select Year</option><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option></select></div>
+                                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Social Link</label><input id="editSocial" type="url" class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary"></div>
+                                </div>
+                                <div><label class="block text-sm font-medium text-slate-700 mb-1">Bio</label><textarea id="editBio" rows="3" maxlength="86" class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary"></textarea></div>
+                                <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg shadow-md hover:bg-indigo-700 transition">Save Changes</button>
+                                <hr class="my-6 border-slate-200">
+                                <button type="button" onclick="auth.logout()" class="px-6 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition w-full md:w-auto">Sign Out</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-auth" class="view-section py-10 px-4">
+            <div class="max-w-md mx-auto bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+                <div class="p-8">
+                    <div class="text-center mb-8">
+                        <div class="w-12 h-12 rounded-lg bg-primary text-white flex items-center justify-center text-xl font-bold mx-auto mb-4"><i class="fa-solid fa-lock"></i></div>
+                        <h2 id="auth-title" class="text-2xl font-bold text-slate-900">Welcome Back</h2>
+                        <p id="auth-subtitle" class="text-slate-500">Sign in to access your engineering vault.</p>
+                    </div>
+
+                    <form id="loginForm" class="space-y-4">
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Email</label><input type="email" id="lEmail" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none"></div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1 flex justify-between">
+                                <span>Password</span>
+                                <a href="#" onclick="toggleAuthMode('forgot')" class="text-primary hover:underline text-xs">Forgot Password?</a>
+                            </label>
+                            <input type="password" id="lPass" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none">
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-primary hover:bg-indigo-700 text-white font-bold rounded-lg shadow transition">Sign In</button>
+                    </form>
+
+                    <form id="registerForm" class="space-y-4 hidden">
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Full Name</label><input type="text" id="rName" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none"></div>
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Username (Unique ID)</label><input type="text" id="rUsername" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none" placeholder="@username"></div>
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Email (OTP required)</label><input type="email" id="rEmail" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none"></div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                            <input type="password" id="rPass" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none">
+                            <p class="text-[10px] text-slate-400 mt-1">Min: 1 Uppercase, 2 Digits, 3 Letters.</p>
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-secondary hover:bg-sky-600 text-white font-bold rounded-lg shadow transition">Send OTP & Register</button>
+                    </form>
+
+                    <form id="otpForm" class="space-y-4 hidden">
+                        <div class="text-center bg-indigo-50 p-3 rounded mb-2">
+                            <p class="text-xs text-indigo-700">We sent a code to <span id="otpEmailDisplay" class="font-bold"></span>.</p>
+                            <p class="text-[10px] text-indigo-500">(Check browser alert/pop-up)</p>
+                        </div>
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Enter OTP</label><input type="text" id="otpInput" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none text-center tracking-widest text-lg" placeholder="123456"></div>
+                        <button type="submit" class="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow transition">Verify & Create Account</button>
+                        <button type="button" onclick="toggleAuthMode('register')" class="w-full py-2 text-sm text-slate-500 hover:text-slate-700">Back</button>
+                    </form>
+
+                    <form id="forgotPassForm" class="space-y-4 hidden">
+                        <div><label class="block text-sm font-medium text-slate-700 mb-1">Registered Email</label><input type="email" id="fEmail" required class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none"></div>
+                        <div id="forgotNewPassSection" class="hidden">
+                            <label class="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+                            <input type="password" id="fNewPass" class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none">
+                             <p class="text-[10px] text-slate-400 mt-1">Min: 1 Uppercase, 2 Digits, 3 Letters.</p>
+                            <label class="block text-sm font-medium text-slate-700 mb-1 mt-2">Enter OTP</label>
+                            <input type="text" id="fOtp" class="w-full px-4 py-2 rounded-lg border border-slate-200 focus:border-primary outline-none">
+                        </div>
+                        <button id="forgotActionBtn" type="submit" class="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg shadow transition">Send Reset Code</button>
+                         <button type="button" onclick="toggleAuthMode('login')" class="w-full py-2 text-sm text-slate-500 hover:text-slate-700">Back to Login</button>
+                    </form>
+
+                    <div id="social-auth" class="mt-4">
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+                            <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-slate-500">Or continue with</span></div>
+                        </div>
+                        <button onclick="auth.googleLogin()" class="mt-4 w-full flex items-center justify-center gap-2 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+                            <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
+                            <span class="font-medium text-slate-700">Sign in with Google</span>
+                        </button>
+                    </div>
+
+                    <div class="mt-6 text-center text-sm" id="auth-switch-wrapper">
+                        <span id="auth-switch-text" class="text-slate-500">Don't have an account? </span>
+                        <button onclick="toggleAuthMode('toggle')" id="auth-switch-btn" class="font-bold text-primary hover:underline">Register</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-8 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
+            <p>Knowledge grows when you share, upload, and pass it on.</p>
+        </div>
+    </footer>
+
+    <div id="ratingModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all scale-100">
+            <h3 class="text-lg font-bold text-center mb-4">Rate this Material</h3>
+            <div class="flex justify-center gap-2 mb-6 text-3xl text-slate-300 cursor-pointer" id="starContainer">
+                <i class="fa-solid fa-star hover:text-yellow-400 transition" data-val="1"></i>
+                <i class="fa-solid fa-star hover:text-yellow-400 transition" data-val="2"></i>
+                <i class="fa-solid fa-star hover:text-yellow-400 transition" data-val="3"></i>
+                <i class="fa-solid fa-star hover:text-yellow-400 transition" data-val="4"></i>
+                <i class="fa-solid fa-star hover:text-yellow-400 transition" data-val="5"></i>
+            </div>
+            <button onclick="submitRating()" class="w-full py-2 bg-primary text-white rounded-lg hover:bg-indigo-700">Submit</button>
+            <button onclick="closeModal('ratingModal')" class="w-full mt-2 py-2 text-slate-500 hover:text-slate-700">Close</button>
+        </div>
+    </div>
+
+    <div id="editNoteModal" class="fixed inset-0 z-[60] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl transform transition-all scale-100 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold mb-4">Edit Note Details</h3>
+            <form id="editNoteForm" class="space-y-4">
+                <input type="hidden" id="editNoteId">
+                <div><label class="block text-sm font-medium text-slate-700 mb-1">Title</label><input type="text" id="editNoteTitle" required class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none focus:border-primary"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Course/Branch</label><input type="text" id="editNoteCourse" required class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none"></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Semester</label><select id="editNoteSem" required class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none bg-white"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Content</label><select id="editNoteUnit" required class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none bg-white"><option value="Full Syllabus">Full Syllabus</option><option value="Unit 1">Unit 1</option><option value="Unit 2">Unit 2</option><option value="Unit 3">Unit 3</option><option value="Unit 4">Unit 4</option><option value="Unit 5">Unit 5</option><option value="Other">Other</option></select></div>
+                    <div><label class="block text-sm font-medium text-slate-700 mb-1">Visibility</label><select id="editNoteVisibility" required class="w-full px-4 py-2 rounded-lg border border-slate-200 outline-none bg-white"><option value="public">Public</option><option value="private">Private</option></select></div>
+                </div>
+                <div class="flex justify-end gap-2 pt-4">
+                    <button type="button" onclick="closeModal('editNoteModal')" class="px-4 py-2 text-slate-500 hover:text-slate-700">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="reportModal" class="fixed inset-0 z-[85] hidden flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <button onclick="closeModal('reportModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <h3 class="text-xl font-bold mb-1 text-slate-900">Report Issue</h3>
+            <p class="text-sm text-slate-500 mb-6">Help us maintain quality</p>
+            <form id="reportForm" class="space-y-6">
+                <input type="hidden" id="reportNoteId">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Reason</label>
+                    <select id="reportReason" class="w-full px-4 py-2 border rounded-lg bg-white focus:border-red-500 outline-none">
+                        <option value="">-- Select --</option>
+                        <option value="Duplicate Content">Duplicate Content</option>
+                        <option value="Spam">Spam / Irrelevant</option>
+                        <option value="Low Quality">Low Quality / Unreadable</option>
+                        <option value="Wrong Category">Wrong Branch/Subject</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition shadow-md">Submit Report</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="editUserModal" class="fixed inset-0 z-[75] hidden flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">Edit User</h3>
+            <form id="editUserForm" class="space-y-4">
+                <input type="hidden" id="editUserEmailHidden">
+                <input type="text" id="editUserNameAdmin" class="w-full px-4 py-2 border rounded-lg" placeholder="Name">
+                <input type="email" id="editUserEmailAdmin" class="w-full px-4 py-2 border rounded-lg bg-slate-50" disabled>
+                <input type="text" id="editUserCollegeAdmin" class="w-full px-4 py-2 border rounded-lg" placeholder="College">
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('editUserModal')" class="px-4 py-2 text-slate-500">Cancel</button>
+                    <button type="submit" class="px-6 py-2 bg-primary text-white rounded-lg">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="previewModal" class="fixed inset-0 z-[70] hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative">
+            <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-lg text-slate-800" id="previewTitle">Preview</h3>
+                <button onclick="closeModal('previewModal')" class="w-8 h-8 rounded-full bg-white text-slate-500 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition shadow-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="previewContent" class="flex-grow overflow-y-auto p-6 bg-slate-200 space-y-4 flex flex-col items-center">
+                </div>
+            <div class="p-4 border-t border-slate-200 bg-white flex justify-between items-center">
+                <span id="previewPageInfo" class="text-xs text-slate-500">Showing first 5 pages</span>
+                <button id="previewDownloadBtn" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-indigo-700 font-medium shadow-md transition">
+                    Download Full PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DB_NAME = "EV_PDF_DB";
+        const STORE_NAME = "pdfs";
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // JNCT Specific Offerings Configuration
+        const JNCT_COURSES = {
+            "B.Tech": {
+                branches: ["CSE (Computer Science)", "AI & DS (Artificial Intelligence & Data Science)", "AI & ML (Artificial Intelligence & Machine Learning)", "CSE (Cyber Security)", "ECE (Electronics & Comm.)", "EX (Electrical & Electronics)", "ME (Mechanical)", "CE (Civil)"],
+                sems: 8
+            },
+            "M.Tech": {
+                branches: ["CSE", "Digital Comm.", "Power Electronics", "VLSI Design", "Structural Eng.", "Thermal Eng."],
+                sems: 4
+            },
+            "MBA": {
+                branches: ["Marketing Management", "Human Resource Management", "Financial Management", "Banking & Financial Services", "Business Analytics"],
+                sems: 4
+            },
+            "Diploma (Engg)": {
+                branches: ["Mechanical Engineering", "Civil Engineering", "Electrical Engineering"],
+                sems: 6
+            },
+            "BCA": {
+                branches: ["General", "AI & ML", "Data Science"],
+                sems: 6
+            },
+             "MCA": {
+                 branches: ["General", "AI & ML", "Cloud Computing"],
+                 sems: 4
+            },
+            "BBA": {
+                branches: ["General", "Business Analytics", "Digital Marketing"],
+                sems: 6
+            },
+            "B.Com": {
+                branches: ["Honours", "Computer Applications", "Taxation"],
+                sems: 6
+            },
+            "B.Pharma": {
+                branches: ["Pharmaceutical Science"],
+                sems: 8
+            },
+            "D.Pharma": {
+                branches: ["Pharmaceutical Science"],
+                sems: 2 // Often yearly, represented as 1, 2
+            },
+            "B.Sc Nursing": {
+                branches: ["Nursing"],
+                sems: 8
+            },
+            "GNM": {
+                branches: ["General Nursing & Midwifery"],
+                sems: 6
+            },
+            "BMLT": {
+                branches: ["Medical Laboratory Technology"],
+                sems: 6
+            },
+             "DMLT": {
+                branches: ["Medical Laboratory Technology"],
+                sems: 4
+            },
+            "BPT": {
+                branches: ["Physiotherapy"],
+                sems: 9
+            },
+            "B.Sc": {
+                branches: ["Biotechnology", "Microbiology", "Agriculture (Hons)"],
+                sems: 8 // Max semester count for B.Sc courses
+            }
+        };
+
+        const AVATAR_PRESETS = [
+            'https://ui-avatars.com/api/?name=User&background=4f46e5&color=fff',
+            'https://ui-avatars.com/api/?name=User&background=0ea5e9&color=fff',
+            'https://ui-avatars.com/api/?name=User&background=10b981&color=fff',
+            'https://ui-avatars.com/api/?name=User&background=f59e0b&color=fff',
+            'https://ui-avatars.com/api/?name=User&background=ef4444&color=fff',
+            'https://ui-avatars.com/api/?name=User&background=8b5cf6&color=fff'
+        ];
+
+        const state = {
+            currentUser: null,
+            viewingUser: null,
+            users: [],
+            db: null,
+            currentNoteIdForRating: null,
+            tempRegData: null, 
+            tempOtp: null,    
+            authMode: 'login' 
+        };
+
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+                };
+                request.onsuccess = (e) => {
+                    state.db = e.target.result;
+                    resolve(state.db);
+                };
+                request.onerror = () => reject("DB Error");
+            });
+        };
+
+        const storeFile = (file, id) => {
+            return new Promise((resolve, reject) => {
+                const tx = state.db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                store.put(file, id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject();
+            });
+        };
+
+        const getFile = (id) => {
+            return new Promise((resolve, reject) => {
+                const tx = state.db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.get(id);
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = () => reject();
+            });
+        };
+
+        const auth = {
+            init: () => {
+                state.currentUser = JSON.parse(localStorage.getItem("ev-user"));
+                state.users = JSON.parse(localStorage.getItem("ev-users") || "[]");
+                ui.updateNavAuth();
+            },
+            
+            validatePasswordStrength: (password) => {
+                const hasUpper = /[A-Z]/.test(password);
+                const digits = (password.match(/\d/g) || []).length;
+                const letters = (password.match(/[a-zA-Z]/g) || []).length;
+                
+                if (!hasUpper) return "Password must contain at least one uppercase letter.";
+                if (digits < 2) return "Password must contain at least 2 digits.";
+                if (letters < 3) return "Password must contain at least 3 letters.";
+                return null;
+            },
+
+            login: (email, password) => {
+                if (email === 'admin@ervault.com' && password === 'admin123') {
+                    const adminUser = {
+                        name: 'System Admin',
+                        username: 'admin',
+                        email: 'admin@ervault.com',
+                        isAdmin: true,
+                        avatar: 'https://ui-avatars.com/api/?name=Admin&background=ef4444&color=fff'
+                    };
+                    state.currentUser = adminUser;
+                    localStorage.setItem("ev-user", JSON.stringify(adminUser));
+                    ui.updateNavAuth();
+                    router.navigate('admin');
+                    return true;
+                }
+
+                const user = state.users.find(u => u.email === email && u.password === password);
+                if (user) {
+                    if (user.isBlocked) {
+                        alert("Your account has been blocked by the administrator. Contact support.");
+                        return false;
+                    }
+                    state.currentUser = user;
+                    localStorage.setItem("ev-user", JSON.stringify(user));
+                    ui.updateNavAuth();
+                    router.navigate('home');
+                    return true;
+                }
+                alert("Invalid credentials.");
+                return false;
+            },
+
+            initiateRegister: (name, username, email, password) => {
+                username = username.replace('@', '');
+                
+                if (state.users.find(u => u.username === username)) return alert("Username already taken. Please choose another.");
+                if (state.users.find(u => u.email === email)) return alert("Email already registered.");
+                
+                const passError = auth.validatePasswordStrength(password);
+                if (passError) return alert(passError);
+
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                state.tempOtp = otp;
+                state.tempRegData = { name, username, email, password };
+                
+                alert(`[SIMULATION] Verification OTP sent to ${email}: ${otp}`);
+                
+                document.getElementById('otpEmailDisplay').innerText = email;
+                toggleAuthMode('otp');
+            },
+
+            completeRegister: (otpInput) => {
+                if (otpInput === state.tempOtp) {
+                    const { name, username, email, password } = state.tempRegData;
+                    
+                    const newUser = {
+                        name, username, email, password,
+                        avatar: `https://ui-avatars.com/api/?name=${name}&background=random`,
+                        bio: "Engineering Student",
+                        education: "Student", college: "JNCT Bhopal", location: "Bhopal",
+                        studyYear: "1st Year", socialLink: "",
+                        downloads: 0, downloadedList: [], wishlist: [], isBlocked: false
+                    };
+                    state.users.push(newUser);
+                    localStorage.setItem("ev-users", JSON.stringify(state.users));
+                    
+                    alert("Account verified and created successfully! Please sign in.");
+                    state.tempOtp = null;
+                    state.tempRegData = null;
+                    toggleAuthMode('login');
+                } else {
+                    alert("Invalid OTP. Please try again.");
+                }
+            },
+
+            googleLogin: () => {
+                alert("Simulating Google Auth...");
+                setTimeout(() => {
+                    const googleUser = {
+                        name: "Google User",
+                        username: "user" + Math.floor(Math.random() * 10000),
+                        email: "googleuser@gmail.com",
+                        password: "", 
+                        avatar: "https://lh3.googleusercontent.com/a/default-user=s96-c",
+                        bio: "Signed in via Google",
+                        education: "Student", college: "JNCT Bhopal", location: "Bhopal",
+                        downloads: 0, downloadedList: [], wishlist: [], isBlocked: false
+                    };
+                    
+                    const existing = state.users.find(u => u.email === googleUser.email);
+                    if(existing) {
+                        if (existing.isBlocked) {
+                            return alert("Your account has been blocked by the administrator.");
+                        }
+                        state.currentUser = existing;
+                    } else {
+                        state.users.push(googleUser);
+                        localStorage.setItem("ev-users", JSON.stringify(state.users));
+                        state.currentUser = googleUser;
+                    }
+                    
+                    localStorage.setItem("ev-user", JSON.stringify(state.currentUser));
+                    ui.updateNavAuth();
+                    router.navigate('home');
+                }, 1000);
+            },
+            
+            forgotPassword: (email) => {
+                const user = state.users.find(u => u.email === email);
+                if (!user) return alert("Email not found in our system.");
+                
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                state.tempOtp = otp;
+                state.tempRegData = { email: email, mode: 'reset' }; 
+                
+                alert(`[SIMULATION] Password Reset OTP sent to ${email}: ${otp}`);
+                
+                document.getElementById('forgotActionBtn').innerText = "Verify & Reset";
+                document.getElementById('forgotNewPassSection').classList.remove('hidden');
+                document.getElementById('fEmail').disabled = true;
+            },
+
+            resetPasswordFinal: (newPass, otpInput) => {
+                if (otpInput !== state.tempOtp) return alert("Invalid OTP.");
+                
+                const passError = auth.validatePasswordStrength(newPass);
+                if (passError) return alert(passError);
+
+                const email = state.tempRegData.email;
+                const idx = state.users.findIndex(u => u.email === email);
+                if (idx !== -1) {
+                    state.users[idx].password = newPass;
+                    localStorage.setItem("ev-users", JSON.stringify(state.users));
+                    alert("Password reset successfully. Please login.");
+                    toggleAuthMode('login');
+                    document.getElementById('fEmail').disabled = false;
+                    document.getElementById('forgotNewPassSection').classList.add('hidden');
+                    document.getElementById('forgotActionBtn').innerText = "Send Reset Code";
+                    document.getElementById('forgotPassForm').reset();
+                }
+            },
+
+            logout: () => {
+                state.currentUser = null;
+                state.viewingUser = null;
+                localStorage.removeItem("ev-user");
+                ui.updateNavAuth();
+                router.navigate('home');
+            },
+            updateUser: (updatedData) => {
+                state.currentUser = { ...state.currentUser, ...updatedData };
+                const idx = state.users.findIndex(u => u.email === state.currentUser.email);
+                if (idx !== -1) state.users[idx] = state.currentUser;
+                localStorage.setItem("ev-user", JSON.stringify(state.currentUser));
+                localStorage.setItem("ev-users", JSON.stringify(state.users));
+                ui.renderProfile();
+            }
+        };
+
+        const router = {
+            navigate: (viewName) => {
+                if (viewName === 'admin' && (!state.currentUser || !state.currentUser.isAdmin)) {
+                    alert("Access Denied.");
+                    return router.navigate('home');
+                }
+                if (viewName === 'upload' && !state.currentUser) {
+                    alert("Please login to upload notes.");
+                    return router.navigate('auth');
+                }
+                
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                const target = document.getElementById(`view-${viewName}`);
+                if (target) {
+                    target.classList.add('active');
+                    window.scrollTo(0, 0);
+                }
+
+                if (viewName === 'notes') ui.renderNotes();
+                if (viewName === 'profile') ui.renderProfile();
+                if (viewName === 'admin') Admin.render();
+            }
+        };
+
+        function viewUserProfile(email) {
+            const user = state.users.find(u => u.email === email);
+            if(user) { state.viewingUser = user; router.navigate('profile'); }
+        }
+
+        function openMyProfile() {
+            if(state.currentUser) { state.viewingUser = state.currentUser; router.navigate('profile'); }
+            else router.navigate('auth');
+        }
+
+        const Admin = {
+            currentTab: 'pending',
+            switchTab: (tab) => {
+                Admin.currentTab = tab;
+                ['pending', 'reported', 'all', 'users'].forEach(t => {
+                    const btn = document.getElementById(`admin-tab-${t}`);
+                    if(t === tab) btn.className = "px-4 py-2 rounded-md font-medium text-sm bg-primary text-white shadow-sm whitespace-nowrap";
+                    else btn.className = "px-4 py-2 rounded-md font-medium text-sm text-slate-600 hover:bg-slate-50 whitespace-nowrap";
+                });
+                Admin.render();
+            },
+            render: () => {
+                const grid = document.getElementById('admin-content-grid');
+                grid.innerHTML = '';
+                const allNotes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+
+                if (Admin.currentTab === 'users') {
+                    if(state.users.length === 0) document.getElementById('admin-empty').classList.remove('hidden');
+                    else {
+                        document.getElementById('admin-empty').classList.add('hidden');
+                        state.users.forEach(u => {
+                            const card = document.createElement('div');
+                            card.className = "bg-white rounded-xl shadow border p-4 flex items-center gap-4";
+                            card.innerHTML = `
+                                <img src="${u.avatar}" class="w-10 h-10 rounded-full">
+                                <div class="flex-grow">
+                                    <h4 class="font-bold flex items-center gap-2">
+                                        ${u.name} 
+                                        ${u.isBlocked ? '<span class="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold uppercase">Blocked</span>' : ''}
+                                    </h4>
+                                    <p class="text-xs text-slate-500">${u.email}</p>
+                                </div>
+                                <button onclick="Admin.toggleBlock('${u.email}')" class="px-3 py-1 rounded text-xs font-bold ${u.isBlocked ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'} transition">
+                                    ${u.isBlocked ? '<i class="fa-solid fa-unlock mr-1"></i> Unblock' : '<i class="fa-solid fa-ban mr-1"></i> Block'}
+                                </button>
+                                <button onclick="Admin.editUser('${u.email}')" class="text-blue-500 ml-2"><i class="fa-solid fa-pen"></i></button>
+                            `;
+                            grid.appendChild(card);
+                        });
+                    }
+                    return;
+                }
+
+                let filtered = [];
+                if(Admin.currentTab === 'pending') filtered = allNotes.filter(n => n.status === 'pending');
+                else if (Admin.currentTab === 'reported') filtered = allNotes.filter(n => n.reports && n.reports.length > 0);
+                else filtered = allNotes;
+
+                if(filtered.length === 0) {
+                    document.getElementById('admin-empty').classList.remove('hidden');
+                } else {
+                    document.getElementById('admin-empty').classList.add('hidden');
+                    filtered.forEach(n => {
+                        const reportCount = n.reports ? n.reports.length : 0;
+                        const statusColor = n.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700';
+                        
+                        const card = document.createElement('div');
+                        card.className = "bg-white rounded-xl shadow border p-4";
+                        
+                        card.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] font-bold uppercase px-2 py-1 rounded ${statusColor}">${n.status || 'approved'}</span>
+                                <button onclick="openPreview('${n.id}','${n.title}','${n.fileId}')" class="text-xs bg-primary text-white px-3 py-1 rounded hover:bg-indigo-700 transition shadow-sm" title="View Full File"><i class="fa-solid fa-eye mr-1"></i> View Content</button>
+                            </div>
+                            <h3 class="font-bold mt-2 text-slate-800 break-words">${n.title}</h3>
+                            
+                            <div class="mt-3 grid grid-cols-2 gap-y-1 gap-x-2 text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                                <div><span class="font-semibold">By:</span> ${n.uploadedBy}</div>
+                                <div><span class="font-semibold">Course:</span> ${n.course.split('-')[0]}</div>
+                                <div><span class="font-semibold">Sem:</span> ${n.sem}</div>
+                                <div><span class="font-semibold">Type:</span> ${n.unitType}</div>
+                                <div><span class="font-semibold">Size:</span> ${n.size} MB</div>
+                                <div><span class="font-semibold">Vis:</span> ${n.visibility}</div>
+                                <div class="col-span-2 text-[10px] text-slate-400 mt-1">${new Date(n.uploadedAt).toLocaleString()}</div>
+                            </div>
+
+                            ${reportCount > 0 ? `<div class="text-xs text-red-500 font-bold mt-2"><i class="fa-solid fa-triangle-exclamation"></i> ${reportCount} Reports</div>` : ''}
+                            
+                            <div class="flex gap-2 text-xs font-bold text-white mt-4">
+                                ${n.status === 'pending' || n.status === undefined ? `<button onclick="Admin.act('${n.id}','approve')" class="flex-1 bg-green-500 hover:bg-green-600 py-2 rounded transition">Approve</button>` : ''}
+                                <button onclick="Admin.act('${n.id}','delete')" class="flex-1 bg-red-500 hover:bg-red-600 py-2 rounded transition">Delete</button>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                }
+            },
+            act: (id, action) => {
+                let notes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+                if(action === 'delete') {
+                    if(!confirm("Are you sure?")) return;
+                    notes = notes.filter(n => n.id !== id);
+                } else {
+                    const idx = notes.findIndex(n => n.id === id);
+                    if(idx !== -1) notes[idx].status = 'approved';
+                }
+                localStorage.setItem("demoNotes", JSON.stringify(notes));
+                Admin.render();
+            },
+            editUser: (email) => {
+                const u = state.users.find(x => x.email === email);
+                if(!u) return;
+                document.getElementById('editUserEmailHidden').value = u.email;
+                document.getElementById('editUserNameAdmin').value = u.name;
+                document.getElementById('editUserEmailAdmin').value = u.email;
+                document.getElementById('editUserCollegeAdmin').value = u.college || '';
+                document.getElementById('editUserModal').classList.remove('hidden');
+            },
+            toggleBlock: (email) => {
+                const idx = state.users.findIndex(u => u.email === email);
+                if (idx !== -1) {
+                    state.users[idx].isBlocked = !state.users[idx].isBlocked;
+                    localStorage.setItem("ev-users", JSON.stringify(state.users));
+                    Admin.render();
+                }
+            }
+        };
+
+        document.getElementById('editUserForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('editUserEmailHidden').value;
+            const idx = state.users.findIndex(u => u.email === email);
+            if(idx !== -1) {
+                state.users[idx].name = document.getElementById('editUserNameAdmin').value;
+                state.users[idx].college = document.getElementById('editUserCollegeAdmin').value;
+                localStorage.setItem("ev-users", JSON.stringify(state.users));
+                closeModal('editUserModal');
+                Admin.render();
+            }
+        });
+
+        const ui = {
+            updateNavAuth: () => {
+                const container = document.getElementById("nav-auth-container");
+                const mobileContainer = document.getElementById("mobile-auth-container");
+                const adminLink = document.getElementById("nav-admin-link");
+                const mobileAdminLink = document.getElementById("mobile-admin-link");
+
+                if (state.currentUser) {
+                    if (state.currentUser.isAdmin) {
+                        adminLink.classList.remove('hidden');
+                        mobileAdminLink.classList.remove('hidden');
+                    } else {
+                        adminLink.classList.add('hidden');
+                        mobileAdminLink.classList.add('hidden');
+                    }
+
+                    const html = `
+                        <button onclick="openMyProfile()" class="flex items-center space-x-2 text-slate-700 hover:text-primary transition">
+                            <img src="${state.currentUser.avatar}" class="w-8 h-8 rounded-full border border-slate-200 object-cover">
+                            <span class="font-medium hidden lg:inline">${state.currentUser.username ? '@'+state.currentUser.username : state.currentUser.name.split(' ')[0]}</span>
+                        </button>
+                    `;
+                    container.innerHTML = html;
+                    mobileContainer.innerHTML = `<button onclick="auth.logout()" class="w-full text-left block px-3 py-2 text-red-600 font-medium">Logout</button>`;
+                } else {
+                    adminLink.classList.add('hidden');
+                    mobileAdminLink.classList.add('hidden');
+                    const html = `<button onclick="router.navigate('auth')" class="px-5 py-2 rounded-lg bg-primary hover:bg-indigo-700 text-white font-medium shadow-md shadow-indigo-500/20 transition">Sign In</button>`;
+                    container.innerHTML = html;
+                    mobileContainer.innerHTML = `<button onclick="router.navigate('auth')" class="w-full text-left block px-3 py-2 text-primary font-bold">Sign In / Register</button>`;
+                }
+            },
+            
+            renderNotes: (notesToRender = null) => {
+                const grid = document.getElementById("notes-grid");
+                const empty = document.getElementById("notes-empty");
+                grid.innerHTML = "";
+                
+                const notes = notesToRender || JSON.parse(localStorage.getItem("demoNotes") || "[]");
+                
+                const visibleNotes = notes.filter(n => {
+                    const isOwner = state.currentUser && n.uploadedBy === state.currentUser.email;
+                    const isAdmin = state.currentUser && state.currentUser.isAdmin;
+                    const isApproved = n.status === 'approved' || n.status === undefined; 
+                    
+                    if (isAdmin) return true; 
+                    return (n.visibility !== 'private' && isApproved) || isOwner;
+                });
+
+                if (visibleNotes.length === 0) {
+                    empty.classList.remove('hidden');
+                    return;
+                } else {
+                    empty.classList.add('hidden');
+                }
+
+                visibleNotes.forEach(note => {
+                    const uploader = state.users.find(u => u.email === note.uploadedBy) || { name: 'Unknown', username: '?', avatar: 'https://ui-avatars.com/api/?name=?', email: null };
+                    const unitBadge = note.unitType ? `<span class="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 rounded-full border border-blue-100 font-semibold">${note.unitType}</span>` : '';
+                    
+                    let statusBadge = '';
+                    if (note.status === 'pending') statusBadge = `<span class="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded shadow">Pending Approval</span>`;
+
+                    const card = document.createElement("div");
+                    card.className = "bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-lg transition duration-300 flex flex-col h-full";
+                    
+                    card.innerHTML = `
+                        <div class="h-48 bg-slate-100 relative group cursor-pointer overflow-hidden" onclick="openPreview('${note.id}', '${note.title.replace(/'/g, "\\'")}', '${note.fileId}')">
+                            <div id="preview-container-${note.id}" class="w-full h-full flex items-center justify-center overflow-hidden">
+                                <i class="fa-solid fa-file-pdf text-4xl text-slate-300 group-hover:scale-110 transition"></i>
+                            </div>
+                            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                                <span class="text-white font-bold px-4 py-2 rounded-full border border-white/50 backdrop-blur-sm">Preview</span>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        
+                        <div class="p-5 flex-grow flex flex-col">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex flex-col">
+                                     <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider line-clamp-1 max-w-[150px]">${note.course}</span>
+                                     <span class="text-xs text-slate-400 font-medium">Sem ${note.sem}</span>
+                                </div>
+                                ${unitBadge}
+                            </div>
+                            
+                            <h3 class="text-lg font-bold text-slate-900 mb-1 line-clamp-2" title="${note.title}">${note.title}</h3>
+                            
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center cursor-pointer hover:bg-slate-50 rounded px-1 -ml-1 transition" onclick="viewUserProfile('${uploader.email}')">
+                                    <img src="${uploader.avatar}" class="w-6 h-6 rounded-full mr-2 object-cover">
+                                    <span class="text-xs text-slate-500 truncate font-medium hover:text-primary transition">${uploader.username ? '@'+uploader.username : uploader.name}</span>
+                                </div>
+                                <span class="text-[10px] text-slate-400 font-medium"><i class="fa-regular fa-clock mr-1"></i>${new Date(note.uploadedAt).toLocaleDateString()}</span>
+                            </div>
+
+                            <div class="mt-auto flex items-center justify-between border-t border-slate-50 pt-4">
+                                <div class="flex items-center text-yellow-500 text-sm font-bold">
+                                    <i class="fa-solid fa-star mr-1"></i> ${note.avgRating ? note.avgRating.toFixed(1) : 'New'}
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="shareNote('${note.id}')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:text-blue-500 hover:bg-blue-50 flex items-center justify-center transition" title="Share"><i class="fa-solid fa-share-nodes"></i></button>
+                                    <button onclick="openReportModal('${note.id}')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition" title="Report"><i class="fa-solid fa-flag"></i></button>
+                                    <button onclick="downloadNote('${note.id}', '${note.title}', '${note.fileId}')" class="w-8 h-8 rounded-full bg-primary text-white hover:bg-indigo-700 flex items-center justify-center transition shadow-md shadow-indigo-200"><i class="fa-solid fa-download"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                    renderThumbnail(note.id, note.fileId);
+                });
+            },
+
+            renderLeaderboard: () => {
+                const list = document.getElementById("leaderboard-list");
+                list.innerHTML = "";
+                
+                // Calculate scores: (Uploads * 10) + Downloads
+                const allNotes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+                
+                // Map users to scores
+                let rankedUsers = state.users.map(u => {
+                    const uploadCount = allNotes.filter(n => n.uploadedBy === u.email && n.status !== 'pending').length;
+                    const score = (uploadCount * 10) + (u.downloads || 0);
+                    return { ...u, score, uploadCount };
+                });
+
+                // Sort descending
+                rankedUsers.sort((a, b) => b.score - a.score);
+                
+                // Take top 10
+                const topUsers = rankedUsers.slice(0, 10);
+                
+                if(topUsers.length === 0) {
+                     list.innerHTML = '<p class="text-center text-slate-500">No data available yet.</p>';
+                     return;
+                }
+
+                topUsers.forEach((u, index) => {
+                    const row = document.createElement("div");
+                    row.className = "flex items-center p-3 bg-white rounded-lg shadow-sm border border-slate-100 hover:shadow-md transition";
+                    
+                    let medal = '';
+                    if(index === 0) medal = '<i class="fa-solid fa-trophy text-yellow-400 text-lg"></i>';
+                    else if(index === 1) medal = '<i class="fa-solid fa-medal text-slate-400 text-lg"></i>';
+                    else if(index === 2) medal = '<i class="fa-solid fa-medal text-orange-400 text-lg"></i>';
+                    else medal = `<span class="font-bold text-slate-400 w-6 text-center">${index + 1}</span>`;
+
+                    row.innerHTML = `
+                        <div class="mr-4 w-8 flex justify-center">${medal}</div>
+                        <img src="${u.avatar}" class="w-10 h-10 rounded-full object-cover border border-slate-200 mr-3">
+                        <div class="flex-grow">
+                            <h4 class="font-bold text-sm text-slate-800">${u.name}</h4>
+                            <p class="text-xs text-slate-500">${u.uploadCount} Uploads • ${u.downloads || 0} Downloads</p>
+                        </div>
+                        <div class="text-indigo-600 font-bold text-sm bg-indigo-50 px-3 py-1 rounded-full">
+                            ${u.score} pts
+                        </div>
+                    `;
+                    list.appendChild(row);
+                });
+            },
+
+            renderProfile: () => {
+                const u = state.viewingUser || state.currentUser;
+                if (!u) { router.navigate('auth'); return; }
+                const isSelf = state.currentUser && u.email === state.currentUser.email;
+
+                document.getElementById("p-name").innerText = u.name;
+                document.getElementById("p-username").innerText = u.username ? '@' + u.username : '@user';
+                document.getElementById("p-bio").innerText = u.bio || "No bio yet.";
+                document.getElementById("p-avatar").src = u.avatar;
+                
+                if (isSelf) document.getElementById("p-edit-avatar-btn").classList.remove('hidden');
+                else document.getElementById("p-edit-avatar-btn").classList.add('hidden');
+
+                document.getElementById("p-badge-edu").innerText = u.education || "Student";
+                document.getElementById("p-college").innerHTML = `<i class="fa-solid fa-building-columns mr-1"></i> ${u.college || "College Not Set"}`;
+                document.getElementById("p-location").innerHTML = `<i class="fa-solid fa-location-dot mr-1"></i> ${u.location || "Location Not Set"}`;
+                document.getElementById("p-year").innerText = u.studyYear || "Year ?";
+
+                const allNotes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+                const myUploads = allNotes.filter(n => n.uploadedBy === u.email);
+                const avg = myUploads.reduce((acc, n) => acc + (n.avgRating || 0), 0) / (myUploads.length || 1);
+
+                document.getElementById("stat-uploads").innerText = myUploads.length;
+                document.getElementById("stat-downloads").innerText = u.downloads || 0;
+                document.getElementById("stat-rating").innerText = avg.toFixed(1);
+
+                if (isSelf) {
+                    ['wishlist', 'downloads', 'settings'].forEach(t => document.getElementById(`tab-${t}`).classList.remove('hidden'));
+                    document.getElementById("editName").value = u.name;
+                    document.getElementById("editEdu").value = u.education || "";
+                    document.getElementById("editCollege").value = u.college || "";
+                    document.getElementById("editLocation").value = u.location || "";
+                    document.getElementById("editYear").value = u.studyYear || "";
+                    document.getElementById("editSocial").value = u.socialLink || "";
+                    document.getElementById("editBio").value = u.bio || "";
+                    
+                    // Render Avatar Presets
+                    const presetContainer = document.getElementById("avatar-presets");
+                    presetContainer.innerHTML = '';
+                    AVATAR_PRESETS.forEach(url => {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.className = "w-10 h-10 rounded-full cursor-pointer hover:ring-2 hover:ring-primary transition border border-slate-200";
+                        img.onclick = () => { auth.updateUser({ avatar: url }); };
+                        presetContainer.appendChild(img);
+                    });
+
+                } else {
+                    ['wishlist', 'downloads', 'settings'].forEach(t => document.getElementById(`tab-${t}`).classList.add('hidden'));
+                    profileSwitchTab('uploads'); 
+                }
+
+                // Render Leaderboard regardless of self/other
+                ui.renderLeaderboard();
+
+                const generateMiniCard = (n, showRateBtn = false, isMyUploadList = false) => {
+                    let controls = isMyUploadList && isSelf ? 
+                        `<button onclick="openEditNote('${n.id}')" class="p-2 text-slate-400 hover:text-green-500"><i class="fa-solid fa-pen"></i></button>
+                         <button onclick="deleteNote('${n.id}')" class="p-2 text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>` : 
+                        `<button onclick="downloadNote('${n.id}', '${n.title}', '${n.fileId}')" class="text-slate-400 hover:text-primary"><i class="fa-solid fa-download"></i></button>`;
+                    
+                    let status = '';
+                    if(isMyUploadList && n.status === 'pending') status = '<span class="text-[10px] bg-yellow-100 text-yellow-800 px-1 rounded ml-2">Pending</span>';
+
+                    return `
+                    <div class="flex items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div class="w-10 h-10 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 flex-shrink-0"><i class="fa-solid fa-file-pdf"></i></div>
+                        <div class="flex-grow min-w-0 mr-2">
+                            <h4 class="font-bold text-slate-800 text-sm truncate">${n.title} ${status}</h4>
+                            <p class="text-xs text-slate-500">${n.course} • ${n.unitType || 'Resource'}</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                             ${showRateBtn ? `<button onclick="openRatingModal('${n.id}')" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200 transition mr-2">Rate</button>` : ''}
+                             ${controls}
+                        </div>
+                    </div>`;
+                };
+
+                document.getElementById("profile-notes-list").innerHTML = myUploads.length ? myUploads.map(n => generateMiniCard(n, false, true)).join('') : '<p class="text-slate-400 text-sm">No uploads yet.</p>';
+
+                if (isSelf) {
+                    const wishlistNotes = allNotes.filter(n => (u.wishlist||[]).includes(n.id));
+                    const downloadedNotes = allNotes.filter(n => (u.downloadedList||[]).includes(n.id));
+                    document.getElementById("profile-wishlist-list").innerHTML = wishlistNotes.length ? wishlistNotes.map(n => generateMiniCard(n)).join('') : '<p class="text-slate-400 text-sm">No saved notes.</p>';
+                    document.getElementById("profile-downloads-list").innerHTML = downloadedNotes.length ? downloadedNotes.map(n => generateMiniCard(n, true)).join('') : '<p class="text-slate-400 text-sm">No downloads yet.</p>';
+                }
+            }
+        };
+
+        // --- Selectors Population Logic ---
+        function populateSelectors() {
+            // Filter Selectors
+            const degreeSelect = document.getElementById('filterDegree');
+            const degreeUpload = document.getElementById('upDegree');
+            
+            const degrees = Object.keys(JNCT_COURSES);
+            
+            // Populate Degrees
+            [degreeSelect, degreeUpload].forEach(sel => {
+                sel.innerHTML = '<option value="">Select Degree</option>';
+                degrees.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.innerText = d;
+                    sel.appendChild(opt);
+                });
+            });
+
+            // Add Event Listeners for cascading
+            document.getElementById('filterDegree').addEventListener('change', (e) => updateCascadingSelectors(e.target.value, 'filterBranch', 'filterSem'));
+            document.getElementById('upDegree').addEventListener('change', (e) => updateCascadingSelectors(e.target.value, 'upBranch', 'upSem'));
+        }
+
+        function updateCascadingSelectors(degree, branchId, semId) {
+            const branchSelect = document.getElementById(branchId);
+            const semSelect = document.getElementById(semId);
+            
+            branchSelect.innerHTML = '<option value="">Select Branch</option>';
+            semSelect.innerHTML = '<option value="">Select Semester</option>';
+
+            if (!degree || !JNCT_COURSES[degree]) {
+                // Also trigger filter run if this is the search bar
+                if(branchId === 'filterBranch') runFilters();
+                return;
+            }
+
+            const courseData = JNCT_COURSES[degree];
+
+            // Populate Branches
+            courseData.branches.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.innerText = b;
+                branchSelect.appendChild(opt);
+            });
+
+            // Populate Semesters
+            for(let i=1; i<=courseData.sems; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.innerText = i;
+                semSelect.appendChild(opt);
+            }
+            
+            if(branchId === 'filterBranch') runFilters();
+        }
+        
+        // --- Form Handling ---
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (state.currentUser && state.users.find(u => u.email === state.currentUser.email)?.isBlocked) {
+                return alert("Your account is blocked. You cannot upload files.");
+            }
+
+            const file = document.getElementById('upFile').files[0];
+            if (!file) return alert("Please select a PDF file.");
+            if (file.size > 15 * 1024 * 1024) return alert("File too large (Max 15MB).");
+
+            const degree = document.getElementById('upDegree').value;
+            const branch = document.getElementById('upBranch').value;
+            
+            // Format course string for backward compatibility with display logic: "B.Tech - CSE"
+            const courseString = `${degree} - ${branch}`;
+
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = "Uploading..."; btn.disabled = true;
+
+            try {
+                const id = "note-" + Date.now();
+                await storeFile(file, id); 
+
+                const noteMeta = {
+                    id: id, fileId: id,
+                    title: document.getElementById('upTitle').value,
+                    course: courseString, 
+                    sem: document.getElementById('upSem').value,
+                    unitType: document.getElementById('upUnit').value,
+                    visibility: document.getElementById('upVisibility').value,
+                    uploadedAt: new Date().toISOString(),
+                    uploadedBy: state.currentUser.email,
+                    avgRating: 0,
+                    size: (file.size / 1024 / 1024).toFixed(2),
+                    status: 'pending', 
+                    reports: []
+                };
+
+                const notes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+                notes.unshift(noteMeta);
+                localStorage.setItem("demoNotes", JSON.stringify(notes));
+
+                alert("Upload Successful! Your note is pending admin approval.");
+                e.target.reset(); document.getElementById('fileNameDisplay').classList.add('hidden');
+                router.navigate('notes');
+            } catch (err) {
+                console.error(err); alert("Upload Failed.");
+            } finally {
+                btn.innerText = originalText; btn.disabled = false;
+            }
+        });
+
+        function openEditNote(id) {
+            const notes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+            document.getElementById('editNoteId').value = note.id;
+            document.getElementById('editNoteTitle').value = note.title;
+            document.getElementById('editNoteCourse').value = note.course; // Simple text input for compatibility
+            document.getElementById('editNoteSem').value = note.sem;
+            document.getElementById('editNoteUnit').value = note.unitType || 'Other';
+            document.getElementById('editNoteVisibility').value = note.visibility || 'public';
+            document.getElementById('editNoteModal').classList.remove('hidden');
+        }
+
+        document.getElementById('editNoteForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editNoteId').value;
+            const notes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+            const index = notes.findIndex(n => n.id === id);
+            if (index !== -1) {
+                notes[index].title = document.getElementById('editNoteTitle').value;
+                notes[index].course = document.getElementById('editNoteCourse').value;
+                notes[index].sem = document.getElementById('editNoteSem').value;
+                notes[index].unitType = document.getElementById('editNoteUnit').value;
+                notes[index].visibility = document.getElementById('editNoteVisibility').value;
+                localStorage.setItem("demoNotes", JSON.stringify(notes));
+                alert("Note updated!");
+                closeModal('editNoteModal');
+                ui.renderProfile();
+            }
+        });
+
+        function deleteNote(id) {
+            if (!confirm("Are you sure?")) return;
+            const notes = JSON.parse(localStorage.getItem("demoNotes") || "[]").filter(n => n.id !== id);
+            localStorage.setItem("demoNotes", JSON.stringify(notes));
+            ui.renderProfile();
+        }
+
+        function shareNote(id) {
+            const url = `${window.location.origin}${window.location.pathname}?noteId=${id}`;
+            navigator.clipboard.writeText(url).then(() => alert("Link copied!")).catch(() => prompt("Copy link:", url));
+        }
+
+        async function downloadNote(noteId, title, fileId) {
+            if (!state.currentUser) { router.navigate('auth'); return; }
+
+            if (state.users.find(u => u.email === state.currentUser.email)?.isBlocked) {
+                return alert("Your account is blocked. You cannot download files.");
+            }
+
+            try {
+                const fileData = await getFile(fileId);
+                if (!fileData) throw new Error("File not found");
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(fileData);
+                a.download = `${title}.pdf`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+
+                if (!state.currentUser.downloadedList) state.currentUser.downloadedList = [];
+                if(!state.currentUser.downloadedList.includes(noteId)) state.currentUser.downloadedList.push(noteId);
+                state.currentUser.downloads = (state.currentUser.downloads || 0) + 1;
+                auth.updateUser({});
+            } catch (e) { alert("Error downloading file."); }
+        }
+
+        async function openPreview(noteId, title, fileId) {
+             const modal = document.getElementById('previewModal');
+             const container = document.getElementById('previewContent');
+
+             if (state.currentUser && state.users.find(u => u.email === state.currentUser.email)?.isBlocked) {
+                 return alert("Your account is blocked. You cannot view content.");
+             }
+
+             container.innerHTML = '<div class="loader"></div>';
+             document.getElementById('previewTitle').innerText = title;
+             modal.classList.remove('hidden');
+             document.getElementById('previewDownloadBtn').onclick = () => downloadNote(noteId, title, fileId);
+
+             try {
+                const fileData = await getFile(fileId);
+                if(!fileData) throw new Error("File not found");
+                const pdf = await pdfjsLib.getDocument(await fileData.arrayBuffer()).promise;
+                container.innerHTML = '';
+                
+                const isAdmin = state.currentUser && state.currentUser.isAdmin;
+                const maxPages = isAdmin ? pdf.numPages : Math.min(pdf.numPages, 5);
+
+                const footerSpan = document.getElementById('previewPageInfo');
+                if(footerSpan) {
+                    footerSpan.innerText = isAdmin ? `Showing all ${pdf.numPages} pages` : `Showing first ${maxPages} pages`;
+                }
+
+                for(let i=1; i<=maxPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 1.2 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height; canvas.width = viewport.width;
+                    canvas.className = "shadow-lg rounded-sm bg-white max-w-full";
+                    container.appendChild(canvas);
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                }
+             } catch(e) { container.innerHTML = '<p class="text-red-500">Error loading preview.</p>'; }
+        }
+
+        async function renderThumbnail(noteId, fileId) {
+            try {
+                const container = document.getElementById(`preview-container-${noteId}`);
+                const fileData = await getFile(fileId);
+                if(!fileData) return;
+                const pdf = await pdfjsLib.getDocument(await fileData.arrayBuffer()).promise;
+                const page = await pdf.getPage(1);
+                const viewport = page.getViewport({ scale: 0.5 });
+                const canvas = document.createElement('canvas');
+                canvas.height = viewport.height; canvas.width = viewport.width;
+                canvas.className = "w-full h-full object-cover";
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                container.innerHTML = ''; container.appendChild(canvas);
+            } catch(e) {}
+        }
+
+        function openReportModal(id) {
+            if(!state.currentUser) return router.navigate('auth');
+            document.getElementById('reportNoteId').value = id;
+            document.getElementById('reportModal').classList.remove('hidden');
+        }
+
+        document.getElementById('reportForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('reportNoteId').value;
+            const reason = document.getElementById('reportReason').value;
+            if(!reason) return alert("Select a reason.");
+
+            const notes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+            const idx = notes.findIndex(n => n.id === id);
+            if(idx !== -1) {
+                if(!notes[idx].reports) notes[idx].reports = [];
+                notes[idx].reports.push({ reason, by: state.currentUser.email, date: new Date().toISOString() });
+                localStorage.setItem("demoNotes", JSON.stringify(notes));
+                alert("Report submitted.");
+                closeModal('reportModal');
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', (e) => { 
+            e.preventDefault(); 
+            auth.login(document.getElementById('lEmail').value, document.getElementById('lPass').value); 
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', (e) => { 
+            e.preventDefault(); 
+            auth.initiateRegister(
+                document.getElementById('rName').value, 
+                document.getElementById('rUsername').value, 
+                document.getElementById('rEmail').value, 
+                document.getElementById('rPass').value
+            ); 
+        });
+
+        document.getElementById('otpForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            auth.completeRegister(document.getElementById('otpInput').value);
+        });
+
+        document.getElementById('forgotPassForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('fEmail').value;
+            const newPass = document.getElementById('fNewPass').value;
+            const otp = document.getElementById('fOtp').value;
+
+            if(document.getElementById('forgotNewPassSection').classList.contains('hidden')) {
+                auth.forgotPassword(email);
+            } else {
+                auth.resetPasswordFinal(newPass, otp);
+            }
+        });
+        
+        function toggleAuthMode(mode) {
+            const login = document.getElementById('loginForm');
+            const reg = document.getElementById('registerForm');
+            const otp = document.getElementById('otpForm');
+            const forgot = document.getElementById('forgotPassForm');
+            const social = document.getElementById('social-auth');
+            const switchWrapper = document.getElementById('auth-switch-wrapper');
+            
+            [login, reg, otp, forgot].forEach(el => el.classList.add('hidden'));
+            social.classList.remove('hidden'); 
+            switchWrapper.classList.remove('hidden');
+
+            if (mode === 'login') {
+                login.classList.remove('hidden');
+                document.getElementById('auth-title').innerText = "Welcome Back";
+                document.getElementById('auth-switch-text').innerText = "Don't have an account? ";
+                document.getElementById('auth-switch-btn').innerText = "Register";
+                document.getElementById('auth-switch-btn').onclick = () => toggleAuthMode('register');
+            } else if (mode === 'register') {
+                reg.classList.remove('hidden');
+                document.getElementById('auth-title').innerText = "Join Ervault";
+                document.getElementById('auth-switch-text').innerText = "Already have an account? ";
+                document.getElementById('auth-switch-btn').innerText = "Sign In";
+                document.getElementById('auth-switch-btn').onclick = () => toggleAuthMode('login');
+            } else if (mode === 'otp') {
+                otp.classList.remove('hidden');
+                social.classList.add('hidden');
+                switchWrapper.classList.add('hidden');
+                document.getElementById('auth-title').innerText = "Verify Email";
+                document.getElementById('auth-subtitle').innerText = "Enter the OTP sent to your email.";
+            } else if (mode === 'forgot') {
+                forgot.classList.remove('hidden');
+                social.classList.add('hidden');
+                switchWrapper.classList.add('hidden');
+                document.getElementById('auth-title').innerText = "Reset Password";
+                document.getElementById('auth-subtitle').innerText = "We'll send a code to your email.";
+            } else if (mode === 'toggle') {
+                if(login.classList.contains('hidden')) toggleAuthMode('login');
+                else toggleAuthMode('register');
+            }
+        }
+
+        document.getElementById('editAvatarInput').addEventListener('change', function(e) { if(e.target.files[0]) { const r = new FileReader(); r.onload = (ev) => auth.updateUser({ avatar: ev.target.result }); r.readAsDataURL(e.target.files[0]); } });
+        
+        document.getElementById('profileEditForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            auth.updateUser({
+                name: document.getElementById('editName').value, education: document.getElementById('editEdu').value,
+                college: document.getElementById('editCollege').value, location: document.getElementById('editLocation').value,
+                studyYear: document.getElementById('editYear').value, socialLink: document.getElementById('editSocial').value, bio: document.getElementById('editBio').value
+            });
+            alert("Profile updated!");
+        });
+
+        function openRatingModal(id) { state.currentNoteIdForRating = id; document.getElementById("ratingModal").classList.remove("hidden"); }
+        document.querySelectorAll('.fa-star').forEach(star => {
+            star.addEventListener('click', function() {
+                const val = this.dataset.val;
+                document.querySelectorAll('#starContainer .fa-star').forEach(s => s.classList.toggle('text-yellow-400', s.dataset.val <= val));
+                state.currentRating = parseInt(val);
+            });
+        });
+        function submitRating() {
+            if (!state.currentRating || !state.currentNoteIdForRating) return;
+            const notes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+            const idx = notes.findIndex(n => n.id === state.currentNoteIdForRating);
+            if (idx > -1) {
+                notes[idx].avgRating = notes[idx].avgRating === 0 ? state.currentRating : (notes[idx].avgRating + state.currentRating) / 2;
+                localStorage.setItem("demoNotes", JSON.stringify(notes));
+                closeModal('ratingModal'); ui.renderNotes(); ui.renderProfile();
+            }
+        }
+
+        function profileSwitchTab(t) { 
+            ['uploads','wishlist','downloads','settings', 'leaderboard'].forEach(x => { 
+                document.getElementById(`content-${x}`).classList.add('hidden'); 
+                const tab = document.getElementById(`tab-${x}`);
+                tab.classList.remove('border-primary','text-primary'); 
+                tab.classList.add('border-transparent'); 
+            }); 
+            document.getElementById(`content-${t}`).classList.remove('hidden'); 
+            const activeTab = document.getElementById(`tab-${t}`);
+            activeTab.classList.add('border-primary','text-primary'); 
+            activeTab.classList.remove('border-transparent'); 
+            
+            if(t === 'leaderboard') ui.renderLeaderboard();
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function toggleMobileMenu() { document.getElementById('mobile-menu').classList.toggle('hidden'); }
+        function handleFileSelect(input) { if(input.files[0]) { document.getElementById('fileNameDisplay').innerText = `Selected: ${input.files[0].name}`; document.getElementById('fileNameDisplay').classList.remove('hidden'); } }
+
+        document.getElementById('searchInput').addEventListener('input', runFilters);
+        // Event listeners for selects are handled in populateSelectors()
+        document.getElementById('filterBranch').addEventListener('change', runFilters);
+        document.getElementById('filterSem').addEventListener('change', runFilters);
+        document.getElementById('unitFilter').addEventListener('change', runFilters);
+        
+        function runFilters() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const degree = document.getElementById('filterDegree').value;
+            const branch = document.getElementById('filterBranch').value;
+            const sem = document.getElementById('filterSem').value;
+            const unit = document.getElementById('unitFilter').value;
+            
+            const allNotes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+            const filtered = allNotes.filter(n => {
+                // Course string logic: "Degree - Branch"
+                const courseMatch = 
+                    (degree === "" || n.course.includes(degree)) &&
+                    (branch === "" || n.course.includes(branch));
+
+                return n.title.toLowerCase().includes(term) &&
+                       courseMatch &&
+                       (sem === "" || n.sem === sem) &&
+                       (unit === "" || (n.unitType && n.unitType === unit));
+            });
+            ui.renderNotes(filtered);
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedNoteId = urlParams.get('noteId');
+            await initDB(); auth.init();
+            
+            populateSelectors(); // Initialize Dropdowns
+
+            if (sharedNoteId) {
+                const notes = JSON.parse(localStorage.getItem("demoNotes") || "[]");
+                const note = notes.find(n => n.id === sharedNoteId);
+                if (note) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    router.navigate('notes');
+                    setTimeout(() => openPreview(note.id, note.title, note.fileId), 500);
+                } else router.navigate('home');
+            } else router.navigate('home');
+        });
+    </script>
+</body>
+</html>
